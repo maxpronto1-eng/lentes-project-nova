@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lentes Inteligentes</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        padding: 30px;
+        background: #111;
+        color: white;
+    }
+    h1 {
+        margin-bottom: 10px;
+    }
+    button {
+        width: 90%;
+        max-width: 350px;
+        padding: 18px;
+        margin-top: 20px;
+        font-size: 20px;
+        border: none;
+        border-radius: 12px;
+        background: #2196F3;
+        color: white;
+    }
+    #estado {
+        margin-top: 25px;
+        font-size: 18px;
+    }
+    #ubicacion {
+        margin-top: 30px;
+        padding: 20px;
+        border-radius: 12px;
+        background: #222;
+        font-size: 20px;
+    }
+</style>
+</head>
+<body>
+<h1>🕶️ Lentes Inteligentes</h1>
+<p>Prototipo de geolocalización</p>
+<button onclick="conectarBluetooth()">
+    🔵 CONECTAR LENTES
+</button>
+<div id="estado">
+    Estado: esperando conexión...
+</div>
+<div id="ubicacion">
+    Esperando ubicación...
+</div>
+<script>
+    // =====================================================
+    // CONFIGURACIÓN BLE
+    // =====================================================
+    const NOMBRE_ESP32 = "LENTES-ESP32";
+    const SERVICE_UUID =
+        "12345678-1234-1234-1234-1234567890AB";
+    const CHARACTERISTIC_UUID =
+        "87654321-4321-4321-4321-BA0987654321";
+    let dispositivo = null;
+    let characteristic = null;
+    // =====================================================
+    // CONECTAR CON EL ESP32
+    // =====================================================
+    async function conectarBluetooth() {
+        try {
+            document.getElementById("estado").innerText =
+                "Buscando LENTES-ESP32...";
+            // Buscar dispositivo Bluetooth
+            dispositivo =
+                await navigator.bluetooth.requestDevice({
+                    filters: [
+                        {
+                            name: NOMBRE_ESP32
+                        }
+                    ],
+                    optionalServices: [
+                        SERVICE_UUID
+                    ]
+                });
+            document.getElementById("estado").innerText =
+                "Lentes encontrados. Conectando...";
+            // Conectarse al servidor BLE
+            const servidor =
+                await dispositivo.gatt.connect();
+            // Obtener servicio
+            const servicio =
+                await servidor.getPrimaryService(
+                    SERVICE_UUID
+                );
+            // Obtener característica
+            characteristic =
+                await servicio.getCharacteristic(
+                    CHARACTERISTIC_UUID
+                );
+            // Activar notificaciones
+            await characteristic.startNotifications();
+            // Escuchar mensajes del ESP32
+            characteristic.addEventListener(
+                "characteristicvaluechanged",
+                recibirUbicacion
+            );
+            document.getElementById("estado").innerText =
+                "🟢 Lentes conectados correctamente";
+        }
+        catch (error) {
+            console.error(error);
+            document.getElementById("estado").innerText =
+                "❌ Error: " + error.message;
+        }
+    }
+    // =====================================================
+    // RECIBIR MENSAJE DEL ESP32
+    // =====================================================
+    function recibirUbicacion(event) {
+        const valor =
+            event.target.value;
+        const decoder =
+            new TextDecoder("utf-8");
+        const mensaje =
+            decoder.decode(valor);
+        console.log(
+            "Mensaje recibido:",
+            mensaje
+        );
+        // Mostrar en pantalla
+        document.getElementById(
+            "ubicacion"
+        ).innerText = mensaje;
+        // Leer en voz alta
+        hablar(mensaje);
+    }
+    // =====================================================
+    // CONVERTIR TEXTO EN VOZ
+    // =====================================================
+    function hablar(texto) {
+        // Cancelar cualquier lectura anterior
+        window.speechSynthesis.cancel();
+        const voz =
+            new SpeechSynthesisUtterance(texto);
+        voz.lang = "es-AR";
+        voz.rate = 0.9;
+        voz.pitch = 1;
+        voz.volume = 1;
+        window.speechSynthesis.speak(voz);
+    }
+</script>
+</body>
+</html>
