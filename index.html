@@ -71,18 +71,54 @@
                 "Buscando LENTES-ESP32...";
             // Buscar dispositivo Bluetooth
             dispositivo =
-                await navigator.bluetooth.requestDevice({
-                    filters: [
-                        {
-                            name: NOMBRE_ESP32
-                        }
-                    ],
-                    optionalServices: [
-                        SERVICE_UUID
-                    ]
-                });
-            document.getElementById("estado").innerText =
-                "Lentes encontrados. Conectando...";
+                async function conectarBluetooth() {
+
+    try {
+
+        document.getElementById("estado").innerText =
+            "Buscando dispositivos Bluetooth...";
+
+        dispositivo = await navigator.bluetooth.requestDevice({
+            acceptAllDevices: true,
+            optionalServices: [
+                SERVICE_UUID
+            ]
+        });
+
+        document.getElementById("estado").innerText =
+            "Dispositivo encontrado: " + dispositivo.name;
+
+        const servidor =
+            await dispositivo.gatt.connect();
+
+        const servicio =
+            await servidor.getPrimaryService(SERVICE_UUID);
+
+        characteristic =
+            await servicio.getCharacteristic(
+                CHARACTERISTIC_UUID
+            );
+
+        await characteristic.startNotifications();
+
+        characteristic.addEventListener(
+            "characteristicvaluechanged",
+            recibirUbicacion
+        );
+
+        document.getElementById("estado").innerText =
+            "🟢 LENTES CONECTADOS";
+
+    }
+
+    catch (error) {
+
+        console.error(error);
+
+        document.getElementById("estado").innerText =
+            "❌ Error: " + error.message;
+    }
+}
             // Conectarse al servidor BLE
             const servidor =
                 await dispositivo.gatt.connect();
